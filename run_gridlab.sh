@@ -1,5 +1,7 @@
 DIR="$(pwd)"
 
+GLD=~/software/GridLAB-D/bin/gridlabd
+
 # model's folders
 TAXONOMY_DIR="Taxonomy_feeders"
 TAXONOMY_NEW_DIR="modified_taxonomy"
@@ -14,7 +16,8 @@ echo $(date) > time.log
 start_t=$(date +"%s")
 
 #gridlabd -v --debug -W $2 --bothstdout $1 -o model.xml --server -P $3 > /tmp/simulation.log
-gridlabd -W $2 --bothstdout $1 -o model.xml --server -P $3 > /tmp/simulation.log
+#gridlabd -W $2 --bothstdout $1 -o model.xml --server -P $3 > /tmp/simulation.log
+$GLD -W $2 --bothstdout $1 -o model.xml --server -P $3 > /tmp/simulation.log
 
 #gdb -ex=r --args  gridlabd -v --debug -W $2 --bothstdout $1 -o model.xml --server -P $3 
 
