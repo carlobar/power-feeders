@@ -154,16 +154,40 @@ object auction {
      //capacity_reference_bid_price max_price**;
      //max_capacity_reference_bid_quantity 1000;
 
-    warmup 0;
+    warmup 1;
     verbose 1;
 
     transaction_log_file log_file.csv;
     curve_log_file bid_curve.csv;
- 
-}
+};
 
 '''.replace('loop*', str(loop)).replace('max_price**', str(max_price)).replace('period**', str(period))
 
+aux_auction = '''
+object auction {
+     name Market_aux;
+     period period**;
+     special_mode NONE;
+     unit kW;
+
+     price_cap max_price**;
+     init_price 0.024;
+     init_stdev 0.024;
+
+     capacity_reference_object meter;
+     capacity_reference_property measured_real_power;
+     //capacity_reference_bid_price max_price**;
+     //max_capacity_reference_bid_quantity 1000;
+
+    warmup 0;
+    verbose 1;
+
+    transaction_log_file log_file_aux.csv;
+    curve_log_file bid_curve_aux.csv;
+
+};
+
+'''.replace('loop*', str(loop)).replace('max_price**', str(max_price)).replace('period**', str(period))
 
 
 # configure the Sellers
@@ -191,12 +215,35 @@ for i in range(blocks):
 	bidder = single_stub_bidder
 	bidder = bidder.replace('price**', str(p))
 	bidder = bidder.replace('quantity**', str(power_block))
+	bidder = bidder.replace('block_', 'seller_')
+	bidder = bidder.replace('x**', str(1+i))
+	stub_bidders.append( bidder )
+
+# add auxiliary sellers
+for i in range(blocks):
+	q = power_block * (i+1)
+	p = cost( q )
+	bidder = single_stub_bidder
+	bidder = bidder.replace('price**', str(p))
+	bidder = bidder.replace('quantity**', str(power_block))
+	bidder = bidder.replace('Market_1', 'Market_aux')
+	bidder = bidder.replace('block_', 'aux_seller_')
 	bidder = bidder.replace('x**', str(1+i))
 	stub_bidders.append( bidder )
 
 
-
-
+# configure bidder fro controllers
+single_stub_bidder_ctrl = '''
+object stub_bidder{
+	name bidder_control_x**;
+	market Market_1;
+	bid_period period**;
+	count 32767;
+	role BUYER;
+	price price**;
+	quantity quantity**;
+}
+'''.replace('loop*', str(loop)).replace('period**', str(period))
 
 
 # create the parser of the GLM file
@@ -220,14 +267,33 @@ glm.modify_attr( nn_id[0], 'nominal_voltage', str(230000) )
 
 # insert auction and add recorder
 auction_id, pos = glm.add_object(our_auction)
-glm.add_recorder(auction_id, 'market.csv', period, ['current_market.clearing_price','current_market.clearing_quantity','current_price_mean_24h','current_price_stdev_24h', 'current_market.buyer_total_unrep', 'current_market.cap_ref_unrep', 'current_market.buyer_total_quantity'])
+
+aux_auction_id, pos = glm.add_object(aux_auction)
+
+#glm.add_recorder(auction_id, 'market.csv', period, ['clearing_price','clearing_quantity','current_price_mean_1h','current_price_stdev_1h', 'buyer_total_quantity']) 
+#'current_market.clearing_price','current_market.clearing_quantity','current_price_mean_1h','current_price_stdev_1h', 'current_market.buyer_total_quantity'
+# 'current_market.buyer_total_unrep', 'current_market.cap_ref_unrep', 
+
+# add reorder for market
+recorder_market = '''
+object recorder {
+	name Market_rec;
+	parent Market_1;
+	property current_market.clearing_price,current_market.clearing_quantity,current_price_mean_1h,current_price_stdev_1h;
+	file market.csv;
+	interval 300;
+}
+'''
+rec_id, pos = glm.add_object(recorder_market)
+#
+
 
 # insert bidders
 for bidder in stub_bidders:
 	bidder_id, pos = glm.add_object(bidder)
 
 
-
+	
 # find a meter to serve as reference for the market
 id_meter = glm.find_neighbor(nn_id[0], 'class', 'meter')
 #pdb.set_trace()
@@ -238,6 +304,11 @@ name_meter = glm.read_attr( id_meter, 'name')
 #glm.modify_attr( auction_id, 'capacity_reference_object', name_meter )
 glm.modify_attr( auction_id, 'capacity_reference_object',  'substation_transformer')
 glm.modify_attr( auction_id, 'capacity_reference_property',  'power_out_real')
+
+
+glm.modify_attr( aux_auction_id, 'capacity_reference_object',  'substation_transformer')
+glm.modify_attr( aux_auction_id, 'capacity_reference_property',  'power_out_real')
+
 
 # remove regulator and the substation transformer
 reg_id = glm.find_objects([['class', 'regulator']])
@@ -260,12 +331,29 @@ for id in controllers:
 
 controllers = glm.find_objects([['class', 'controller']])
 counter = 0
+bidder_controllers = []
 for id in controllers:
 	glm.modify_attr( id, 'name', 'control_' + str(counter), add_attr )
 	glm.modify_attr( id, 'period', str(period) )
 	glm.modify_attr( id, 'bid_mode', 'ON' )
 	glm.modify_attr( id, 'use_predictive_bidding', 'TRUE', add_attr )
+	glm.modify_attr( id, 'market', 'Market_aux' )
+	
+	bidder = single_stub_bidder_ctrl
+	bidder = bidder.replace('price**', '0')
+	bidder = bidder.replace('quantity**', '0')
+	#bidder = bidder.replace('Market_1', 'aux_market')
+	bidder = bidder.replace('block_', 'bidder_control_')
+	bidder = bidder.replace('x**', str(counter))
+	bidder_controllers.append( bidder )
+	
 	counter += 1
+	
+# insert bidders
+for bidder in bidder_controllers:
+	bidder_id, pos = glm.add_object(bidder)
+
+
 
 '''
 # add recorders to the houses

@@ -22,6 +22,7 @@ NEW_GLM = $(MODEL_DIR)/$(MODEL)_custom.glm
 SIM_DIR = simulations
 
 SIM_NORMAL_DIR = $(DIR)/$(SIM_DIR)/$(MODEL)/normal
+SIM_EXAMPLE_DIR = $(DIR)/$(SIM_DIR)/$(MODEL)/example
 PLOT_DIR = $(DIR)/$(SIM_DIR)/$(MODEL)/plot
 
 
@@ -64,6 +65,15 @@ simulate:
 
 
 
+simulate_example:
+	${MAKE} -s custom
+	${MAKE} -s list_objects
+	cp events_example events
+	if [ ! -d $(SIM_EXAMPLE_DIR) ]; then mkdir -p $(SIM_EXAMPLE_DIR); fi
+	python3 event_manager.py --port $(port) &
+	sh run_gridlab.sh $(NEW_GLM) $(SIM_EXAMPLE_DIR) $(options)
+
+
 
 list_objects: $(NEW_GLM)
 	grep '^\s*name' $(NEW_GLM) | sed 's/[ ]*name//' | sed 's/;//' > list_gl_objects
@@ -83,7 +93,7 @@ plot:
 
 
 
-.SILENT: all clean check_log simulate scenario_1 scenario_2 $(NEW_GLM) custom list_objects
+.SILENT: all clean check_log simulate simulate_example scenario_1 scenario_2 $(NEW_GLM) custom list_objects
 
 
 clean:

@@ -1,0 +1,24 @@
+
+object: bidder_control_.*
+option: repeat
+delay: 270
+attribute: quantity
++5m; control_.*/bid_quantity
+
+
+
+object: v1
+option: virtual_object
+attribute: indicator
++0; 1
++11h; 0
++4h; 1 
+
+
+object: ^bidder_control_.*
+option: repeat
+delay: 270
+attribute: price
++5m; select(v1/indicator, control_.*/bid_price, sum(control_.*/bid_price, multiply( 0.2, Market_1/current_market.clearing_price) ) )
+
+
