@@ -58,7 +58,8 @@ custom: $(ORIGINAL_GLM) $(create_custom)
 simulate:
 	${MAKE} -s custom
 	${MAKE} -s list_objects
-	cp events_normal events
+	#cp events_normal events
+	cp events_example1 events
 	if [ ! -d $(SIM_NORMAL_DIR) ]; then mkdir -p $(SIM_NORMAL_DIR); fi
 	python3 event_manager.py --port $(port) &
 	sh run_gridlab.sh $(NEW_GLM) $(SIM_NORMAL_DIR) $(options)
@@ -72,6 +73,8 @@ simulate_example:
 	if [ ! -d $(SIM_EXAMPLE_DIR) ]; then mkdir -p $(SIM_EXAMPLE_DIR); fi
 	python3 event_manager.py --port $(port) &
 	sh run_gridlab.sh $(NEW_GLM) $(SIM_EXAMPLE_DIR) $(options)
+
+
 
 
 

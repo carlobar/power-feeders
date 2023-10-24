@@ -19,16 +19,12 @@ object: ^bidder_control_.*
 option: repeat
 delay: 270
 attribute: price
-+5m; select(v1/indicator, control_.*/bid_price, sum(control_.*/bid_price, multiply( 0.2, Market_1/current_market.clearing_price) ) )
++5m; select(v1/indicator, control_.*/bid_price, sum(control_.*/bid_price, multiply( 0.0, Market_1/current_market.clearing_price) ) )
 
 
 
 object: aux_seller
 option: repeat
-delay: 0
+delay: 270
 attribute: price
-+300s; Market_1/next_market.clearing_price
-
-
-
-
++5m: Market_1/next_market.clearing_price

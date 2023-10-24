@@ -142,6 +142,7 @@ our_auction = '''
 object auction {
      name Market_1;
      period period**;
+     latency 300;
      special_mode NONE;
      unit kW;
 
@@ -154,7 +155,7 @@ object auction {
      //capacity_reference_bid_price max_price**;
      //max_capacity_reference_bid_quantity 1000;
 
-    warmup 1;
+    warmup 0;
     verbose 1;
 
     transaction_log_file log_file.csv;
@@ -220,6 +221,7 @@ for i in range(blocks):
 	stub_bidders.append( bidder )
 
 # add auxiliary sellers
+'''
 for i in range(blocks):
 	q = power_block * (i+1)
 	p = cost( q )
@@ -230,6 +232,23 @@ for i in range(blocks):
 	bidder = bidder.replace('block_', 'aux_seller_')
 	bidder = bidder.replace('x**', str(1+i))
 	stub_bidders.append( bidder )
+'''
+
+aux_bidder = '''
+object stub_bidder{
+	name aux_seller;
+	market Market_aux;
+	bid_period period**;
+	count 32767;
+	role SELLER;
+	price 0;
+	quantity quantity**;
+}
+'''.replace('quantity**', str(max_capacity)).replace('period**', str(period/2))
+
+stub_bidders.append( aux_bidder )
+
+
 
 
 # configure bidder fro controllers
@@ -279,12 +298,25 @@ recorder_market = '''
 object recorder {
 	name Market_rec;
 	parent Market_1;
-	property current_market.clearing_price,current_market.clearing_quantity,current_price_mean_1h,current_price_stdev_1h;
+	property current_market.clearing_price,next_market.clearing_price,current_market.clearing_quantity,current_price_mean_1h,current_price_stdev_1h;
 	file market.csv;
 	interval 300;
 }
 '''
 rec_id, pos = glm.add_object(recorder_market)
+
+
+recorder_aux_market = '''
+object recorder {
+	name aux_Market_rec;
+	parent Market_aux;
+	property current_market.clearing_price,current_market.clearing_quantity,current_price_mean_1h,current_price_stdev_1h;
+	file market_aux.csv;
+	interval 300;
+}
+'''
+rec_id, pos = glm.add_object(recorder_aux_market)
+
 #
 
 
@@ -355,16 +387,17 @@ for bidder in bidder_controllers:
 
 
 
-'''
+
 # add recorders to the houses
 houses = glm.find_objects([['class', 'house']])
+'''
 for i in houses:
 	parent_name = glm.read_attr(i, 'parent')[0]
 	parent_id = glm.find_objects([['name', parent_name]])[0]
 	#pdb.set_trace()
 	glm.add_recorder(parent_id, 'meter_' + parent_name + '.csv', period, ['measured_power'])
 
-
+'''
 # add recorder to the hvac
 house_controller = -1
 for i in houses:
@@ -374,14 +407,15 @@ for i in houses:
 	if child == None:
 		pdb.set_trace()
 	for j in child:
-		if glm.read_attr(j, 'class') == 'controller':
+		#print(glm.read_attr(j, 'class'))
+		if glm.read_attr(j, 'class')[0] == 'controller':
 			house_controller = i
 			break
 
 #pdb.set_trace()
 
 glm.add_recorder(house_controller, 'hvac.csv', period, ['hvac_load','hvac_duty_cycle','heating_setpoint','cooling_setpoint','air_temperature','outdoor_temperature'])
-'''
+
 
 
 
